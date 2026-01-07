@@ -23,6 +23,14 @@ except ImportError:  # Fallback for local runs without ADK installed.
 # Canonical moves and win relationships for classic Rock-Paper-Scissors.
 VALID_MOVES = {"rock", "paper", "scissors", "bomb"}
 RPS_BEATS = {"rock": "scissors", "paper": "rock", "scissors": "paper"}
+# Simple emoji labels to make CLI output more readable.
+MOVE_EMOJI = {
+    "rock": "rock 🪨",
+    "paper": "paper 📄",
+    "scissors": "scissors ✂️",
+    "bomb": "bomb 💣",
+    "none": "none",
+}
 @dataclass
 class ValidationResult:
     """Structured validation response for tool output."""
@@ -161,15 +169,19 @@ class RefereeAgent(Agent):
             winner_text = "Bot"
         else:
             winner_text = "Draw"
+        user_move = MOVE_EMOJI.get(record["user_move"], record["user_move"])
+        bot_move = MOVE_EMOJI.get(record["bot_move"], record["bot_move"])
         return "\n".join(
             [
+                "",
                 "==== Round Result ====",
                 f"Round {round_number}/3",
-                f"Moves: You={record['user_move']} | Bot={record['bot_move']}",
+                f"Moves: You={user_move} | Bot={bot_move}",
                 f"Winner: {winner_text}",
                 f"Reason: {record['note']}",
                 f"Score: You {self.state.user_score} - Bot {self.state.bot_score}",
                 "======================",
+                "",
             ]
         )
 
@@ -178,10 +190,13 @@ def rules_text() -> str:
     """Short rules summary, kept within the 5-line requirement."""
     return "\n".join(
         [
+            "",
             "Best of 3 rounds. Valid moves: rock, paper, scissors, bomb (once per player).",
+            "Move emojis: rock 🪨, paper 📄, scissors ✂️, bomb 💣",
             "Bomb beats everything; bomb vs bomb is a draw.",
             "Invalid input triggers a warning and re-prompt.",
             "Game ends automatically after 3 rounds.",
+            "",
         ]
     )
 
@@ -196,9 +211,11 @@ def final_result(state: GameState) -> str:
         result = "Draw"
     return "\n".join(
         [
+            "",
             "Game Over",
             f"Final Score: You {state.user_score} - Bot {state.bot_score}",
             f"Result: {result}",
+            "",
         ]
     )
 

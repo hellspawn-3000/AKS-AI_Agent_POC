@@ -10,12 +10,13 @@ python main.py
 ## Game rules (short version)
 - Best of 3 rounds.
 - Valid moves: rock, paper, scissors, bomb (once per player).
+- Move emojis: rock 🪨, paper 📄, scissors ✂️, bomb 💣
 - Bomb beats everything; bomb vs bomb is a draw.
 - Invalid input triggers a warning and re-prompt (round does not advance).
 
 ## How the chatbot works (high level)
 Each user turn goes through the same three stages:
-1) Intent understanding: extract a move from free-form text.
+1) Intent understanding: extract a move from the user's exact input.
 2) Game logic: validate the move, select the bot move, resolve winner.
 3) Response generation: show round summary and current score.
 
@@ -33,7 +34,7 @@ State is stored in memory and passed into tools for validation or mutation (so i
 ## Agent and tool design (what does what)
 ### Agent (orchestrator)
 `RefereeAgent` is the control center:
-- `interpret_intent`: parses user input like "I choose rock" or "nuke"
+- `interpret_intent`: parses exact inputs like `rock`, `paper`, `scissors`, `bomb`
 - `choose_bot_move`: picks a move for the bot
 - `play_round`: coordinates the full turn
 - `format_round_response`: prints the round results
@@ -51,13 +52,14 @@ If the input is anything else, the bot warns the user and asks again without con
 ## Example interaction
 ```
 Best of 3 rounds. Valid moves: rock, paper, scissors, bomb (once per player).
+Move emojis: rock 🪨, paper 📄, scissors ✂️, bomb 💣
 Bomb beats everything; bomb vs bomb is a draw.
 Invalid input triggers a warning and re-prompt.
 Game ends automatically after 3 rounds.
 Your move: rock
 ==== Round Result ====
 Round 1/3
-Moves: You=rock | Bot=scissors
+Moves: You=rock 🪨 | Bot=scissors ✂️
 Winner: You
 Reason: rock beats scissors.
 Score: You 1 - Bot 0
