@@ -1,36 +1,79 @@
 # Rock-Paper-Scissors-Plus Referee (ADK)
 
-This is a minimal CLI chatbot that acts as a referee for a best-of-3 Rock-Paper-Scissors-Plus game. It enforces rules, tracks state across turns, and ends automatically after 3 rounds.
+This project is a minimal CLI chatbot that acts as a referee for a best-of-3 Rock-Paper-Scissors-Plus game. It enforces rules, tracks state across turns, and ends automatically after 3 rounds. The implementation is intentionally small and readable for beginner AI enthusiasts.
 
-## State model
-- `GameState` holds `round_index`, `user_score`, `bot_score`, `bombs_used`, and `history`.
-- State is stored in memory and passed into tools for validation and mutation (not kept only in prompts).
+## Quick start
+```bash
+python main.py
+```
 
-## Agent and tool design
-- `RefereeAgent` separates responsibilities:
-  - Intent understanding: `interpret_intent` extracts the user's move from text.
-  - Game logic: `choose_bot_move`, plus tool calls for validation and resolution.
-  - Response generation: `format_round_response`.
-- Tools (ADK) are explicit:
-  - `validate_move_tool` checks validity and bomb usage.
-  - `resolve_round_tool` determines the round outcome.
-  - `update_game_state_tool` mutates scores, history, and round count.
+## Game rules (short version)
+- Best of 3 rounds.
+- Valid moves: rock, paper, scissors, bomb (once per player).
+- Bomb beats everything; bomb vs bomb is a draw.
+- Invalid input triggers a warning and re-prompt (round does not advance).
 
-## Tradeoffs
-- The bot move uses a simple heuristic (random with optional bomb usage) rather than a sophisticated strategy to keep logic minimal and clear.
-- A small fallback decorator is included in `main.py` so the script can run without ADK installed; the ADK tools and agent structure remain visible for review.
+## How the chatbot works (high level)
+Each user turn goes through the same three stages:
+1) Intent understanding: extract a move from free-form text.
+2) Game logic: validate the move, select the bot move, resolve winner.
+3) Response generation: show round summary and current score.
 
-## With more time
-- Add property-based tests for move parsing and scoring.
-- Tune bot strategy for more interesting play.
-- Support configurable match lengths (best-of-5, best-of-7).
+That flow happens inside `RefereeAgent.play_round`, which calls ADK tools for validation, resolution, and state updates.
+
+## State model (what we store)
+The game state lives in `GameState` and persists across turns:
+- `round_index`: how many rounds have been completed
+- `user_score` and `bot_score`
+- `bombs_used`: whether each player has used bomb
+- `history`: a list of round records for reporting
+
+State is stored in memory and passed into tools for validation or mutation (so it is not just text in the prompt).
+
+## Agent and tool design (what does what)
+### Agent (orchestrator)
+`RefereeAgent` is the control center:
+- `interpret_intent`: parses user input like "I choose rock" or "nuke"
+- `choose_bot_move`: picks a move for the bot
+- `play_round`: coordinates the full turn
+- `format_round_response`: prints the round results
+
+### Tools (explicit ADK functions)
+Tools keep game logic separate and testable:
+- `validate_move_tool`: checks if a move is valid and bomb usage is allowed
+- `resolve_round_tool`: decides who wins the round
+- `update_game_state_tool`: mutates scores, history, and bomb usage
+
+## Input parsing (exact)
+The parser expects an exact move: `rock`, `paper`, `scissors`, or `bomb`.
+If the input is anything else, the bot warns the user and asks again without consuming a round.
+
+## Example interaction
+```
+Best of 3 rounds. Valid moves: rock, paper, scissors, bomb (once per player).
+Bomb beats everything; bomb vs bomb is a draw.
+Invalid input triggers a warning and re-prompt.
+Game ends automatically after 3 rounds.
+Your move: rock
+==== Round Result ====
+Round 1/3
+Moves: You=rock | Bot=scissors
+Winner: You
+Reason: rock beats scissors.
+Score: You 1 - Bot 0
+======================
+```
 
 ## Tests
 ```bash
 python -m unittest
 ```
 
-## Run
-```bash
-python main.py
-```
+## Tradeoffs
+- Bot strategy is intentionally simple (random with occasional bomb) to keep logic easy to follow.
+- A small ADK fallback stub is included in `main.py` so the script can run even if ADK is not installed yet.
+
+## With more time
+- Add property-based tests for move parsing and scoring.
+- Tune bot strategy for more interesting play.
+- Support configurable match lengths (best-of-5, best-of-7).

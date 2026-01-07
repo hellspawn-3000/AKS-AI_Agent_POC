@@ -46,11 +46,14 @@ class TestAgentFlow(unittest.TestCase):
         self.assertIn("Invalid move", response)
         self.assertEqual(agent.state.history, [])
 
-    def test_intent_parses_synonyms(self) -> None:
+    def test_intent_requires_exact_input(self) -> None:
         agent = RefereeAgent(GameState())
-        self.assertEqual(agent.interpret_intent("I pick stone!"), "rock")
-        self.assertEqual(agent.interpret_intent("s"), "scissors")
-        self.assertEqual(agent.interpret_intent("Drop the nuke"), "bomb")
+        self.assertEqual(agent.interpret_intent("rock"), "rock")
+        self.assertEqual(agent.interpret_intent("PAPER"), "paper")
+        self.assertEqual(agent.interpret_intent("scissors"), "scissors")
+        self.assertIsNone(agent.interpret_intent("I pick stone!"))
+        self.assertIsNone(agent.interpret_intent("s"))
+        self.assertIsNone(agent.interpret_intent("Drop the nuke"))
 
 
 if __name__ == "__main__":

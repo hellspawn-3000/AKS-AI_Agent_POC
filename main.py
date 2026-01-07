@@ -1,8 +1,9 @@
 import random
-import re
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
+# ADK is required by the assignment, but this fallback keeps the script runnable
+# for local demos when ADK is not installed.
 try:
     from google.adk import Agent
     from google.adk.tools import tool
@@ -19,36 +20,29 @@ except ImportError:  # Fallback for local runs without ADK installed.
             self.description = description
 
 
+# Canonical moves and win relationships for classic Rock-Paper-Scissors.
 VALID_MOVES = {"rock", "paper", "scissors", "bomb"}
 RPS_BEATS = {"rock": "scissors", "paper": "rock", "scissors": "paper"}
-MOVE_SYNONYMS = {
-    "r": "rock",
-    "stone": "rock",
-    "p": "paper",
-    "sheet": "paper",
-    "s": "scissors",
-    "scissor": "scissors",
-    "scizzors": "scissors",
-    "bomb": "bomb",
-    "b": "bomb",
-    "nuke": "bomb",
-}
-
-
 @dataclass
 class ValidationResult:
+    """Structured validation response for tool output."""
+
     valid: bool
     reason: str
 
 
 @dataclass
 class ResolutionResult:
+    """Structured round resolution response for tool output."""
+
     winner: str
     explanation: str
 
 
 @dataclass
 class GameState:
+    """In-memory game state that persists across turns."""
+
     round_index: int = 0
     user_score: int = 0
     bot_score: int = 0
@@ -58,6 +52,7 @@ class GameState:
 
 @tool(name="validate_move", description="Validate a player's move and bomb usage against game rules.")
 def validate_move_tool(move: Optional[str], player: str, state: GameState) -> Dict[str, object]:
+    """Return a structured validation result to keep tool outputs consistent."""
     if not move:
         return asdict(ValidationResult(valid=False, reason="empty input"))
     if move not in VALID_MOVES:
@@ -69,6 +64,7 @@ def validate_move_tool(move: Optional[str], player: str, state: GameState) -> Di
 
 @tool(name="resolve_round", description="Resolve a round outcome given two valid moves.")
 def resolve_round_tool(user_move: str, bot_move: str) -> Dict[str, str]:
+    """Return who won the round and a human-friendly explanation."""
     if user_move == bot_move:
         return asdict(ResolutionResult(winner="draw", explanation="Same move."))
     if user_move == "bomb" and bot_move == "bomb":
@@ -90,6 +86,7 @@ def update_game_state_tool(
     winner: str,
     outcome_note: str,
 ) -> GameState:
+    """Apply the round outcome to state (scores, history, bomb usage)."""
     if user_move == "bomb":
         state.bombs_used["user"] = True
     if bot_move == "bomb":
@@ -117,15 +114,12 @@ class RefereeAgent(Agent):
         self.state = state
 
     def interpret_intent(self, user_text: str) -> Optional[str]:
-        normalized = re.sub(r"[^a-zA-Z]+", " ", user_text.strip().lower())
-        for token in normalized.split():
-            if token in VALID_MOVES:
-                return token
-            if token in MOVE_SYNONYMS:
-                return MOVE_SYNONYMS[token]
-        return None
+        """Extract a move from exact input (rock/paper/scissors/bomb)."""
+        normalized = user_text.strip().lower()
+        return normalized if normalized in VALID_MOVES else None
 
     def choose_bot_move(self) -> str:
+        """Pick a bot move, sometimes using bomb when it may be strategic."""
         moves = ["rock", "paper", "scissors"]
         if not self.state.bombs_used["bot"]:
             if self.state.round_index == 2 or self.state.bot_score < self.state.user_score:
@@ -133,6 +127,7 @@ class RefereeAgent(Agent):
         return random.choice(moves)
 
     def play_round(self, user_text: str) -> str:
+        """Process a single user turn and return the round response text."""
         round_number = self.state.round_index + 1
         user_move = self.interpret_intent(user_text)
         validation = validate_move_tool(user_move, "user", self.state)
@@ -157,6 +152,7 @@ class RefereeAgent(Agent):
         return self.format_round_response(round_number)
 
     def format_round_response(self, round_number: int) -> str:
+        """Format the last round record into a friendly summary block."""
         record = self.state.history[-1]
         winner = record["winner"]
         if winner == "user":
@@ -179,17 +175,19 @@ class RefereeAgent(Agent):
 
 
 def rules_text() -> str:
+    """Short rules summary, kept within the 5-line requirement."""
     return "\n".join(
         [
             "Best of 3 rounds. Valid moves: rock, paper, scissors, bomb (once per player).",
             "Bomb beats everything; bomb vs bomb is a draw.",
-            "Invalid input wastes the round.",
+            "Invalid input triggers a warning and re-prompt.",
             "Game ends automatically after 3 rounds.",
         ]
     )
 
 
 def final_result(state: GameState) -> str:
+    """Summarize the final outcome after 3 rounds."""
     if state.user_score > state.bot_score:
         result = "User wins"
     elif state.bot_score > state.user_score:
@@ -206,6 +204,7 @@ def final_result(state: GameState) -> str:
 
 
 def main() -> None:
+    """CLI loop for a short 3-round game."""
     state = GameState()
     agent = RefereeAgent(state)
     print(rules_text())
