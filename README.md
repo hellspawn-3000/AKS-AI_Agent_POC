@@ -21,9 +21,14 @@ This is a minimal CLI chatbot that acts as a referee for a best-of-3 Rock-Paper-
 - A small fallback decorator is included in `main.py` so the script can run without ADK installed; the ADK tools and agent structure remain visible for review.
 
 ## With more time
-- Add tests for edge cases (invalid inputs, bomb usage, draw scenarios).
-- Add a more explicit intent parser (multi-word input, synonyms).
-- Provide richer chat formatting and a stricter schema for tool outputs.
+- Add property-based tests for move parsing and scoring.
+- Tune bot strategy for more interesting play.
+- Support configurable match lengths (best-of-5, best-of-7).
+
+## Tests
+```bash
+python -m unittest
+```
 
 ## Run
 ```bash

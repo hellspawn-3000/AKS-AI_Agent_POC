@@ -1,5 +1,6 @@
 import random
-from dataclasses import dataclass, field
+import re
+from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
 try:
@@ -20,6 +21,30 @@ except ImportError:  # Fallback for local runs without ADK installed.
 
 VALID_MOVES = {"rock", "paper", "scissors", "bomb"}
 RPS_BEATS = {"rock": "scissors", "paper": "rock", "scissors": "paper"}
+MOVE_SYNONYMS = {
+    "r": "rock",
+    "stone": "rock",
+    "p": "paper",
+    "sheet": "paper",
+    "s": "scissors",
+    "scissor": "scissors",
+    "scizzors": "scissors",
+    "bomb": "bomb",
+    "b": "bomb",
+    "nuke": "bomb",
+}
+
+
+@dataclass
+class ValidationResult:
+    valid: bool
+    reason: str
+
+
+@dataclass
+class ResolutionResult:
+    winner: str
+    explanation: str
 
 
 @dataclass
@@ -32,29 +57,29 @@ class GameState:
 
 
 @tool(name="validate_move", description="Validate a player's move and bomb usage against game rules.")
-def validate_move_tool(move: Optional[str], player: str, state: GameState) -> Dict[str, str]:
+def validate_move_tool(move: Optional[str], player: str, state: GameState) -> Dict[str, object]:
     if not move:
-        return {"valid": "false", "reason": "empty input"}
+        return asdict(ValidationResult(valid=False, reason="empty input"))
     if move not in VALID_MOVES:
-        return {"valid": "false", "reason": "unknown move"}
+        return asdict(ValidationResult(valid=False, reason="unknown move"))
     if move == "bomb" and state.bombs_used.get(player, False):
-        return {"valid": "false", "reason": "bomb already used"}
-    return {"valid": "true", "reason": "ok"}
+        return asdict(ValidationResult(valid=False, reason="bomb already used"))
+    return asdict(ValidationResult(valid=True, reason="ok"))
 
 
 @tool(name="resolve_round", description="Resolve a round outcome given two valid moves.")
 def resolve_round_tool(user_move: str, bot_move: str) -> Dict[str, str]:
     if user_move == bot_move:
-        return {"winner": "draw", "explanation": "Same move."}
+        return asdict(ResolutionResult(winner="draw", explanation="Same move."))
     if user_move == "bomb" and bot_move == "bomb":
-        return {"winner": "draw", "explanation": "Bomb vs bomb is a draw."}
+        return asdict(ResolutionResult(winner="draw", explanation="Bomb vs bomb is a draw."))
     if user_move == "bomb":
-        return {"winner": "user", "explanation": "Bomb beats all other moves."}
+        return asdict(ResolutionResult(winner="user", explanation="Bomb beats all other moves."))
     if bot_move == "bomb":
-        return {"winner": "bot", "explanation": "Bomb beats all other moves."}
+        return asdict(ResolutionResult(winner="bot", explanation="Bomb beats all other moves."))
     if RPS_BEATS[user_move] == bot_move:
-        return {"winner": "user", "explanation": f"{user_move} beats {bot_move}."}
-    return {"winner": "bot", "explanation": f"{bot_move} beats {user_move}."}
+        return asdict(ResolutionResult(winner="user", explanation=f"{user_move} beats {bot_move}."))
+    return asdict(ResolutionResult(winner="bot", explanation=f"{bot_move} beats {user_move}."))
 
 
 @tool(name="update_game_state", description="Mutate game state with the round result.")
@@ -92,10 +117,12 @@ class RefereeAgent(Agent):
         self.state = state
 
     def interpret_intent(self, user_text: str) -> Optional[str]:
-        normalized = user_text.strip().lower()
+        normalized = re.sub(r"[^a-zA-Z]+", " ", user_text.strip().lower())
         for token in normalized.split():
             if token in VALID_MOVES:
                 return token
+            if token in MOVE_SYNONYMS:
+                return MOVE_SYNONYMS[token]
         return None
 
     def choose_bot_move(self) -> str:
@@ -109,15 +136,14 @@ class RefereeAgent(Agent):
         round_number = self.state.round_index + 1
         user_move = self.interpret_intent(user_text)
         validation = validate_move_tool(user_move, "user", self.state)
-        if validation["valid"] != "true":
-            self.state = update_game_state_tool(
-                self.state,
-                user_move or "invalid",
-                "none",
-                "draw",
-                f"Invalid input ({validation['reason']}). Round wasted.",
+        if not validation["valid"]:
+            return "\n".join(
+                [
+                    "Invalid move.",
+                    f"Reason: {validation['reason']}.",
+                    "Please enter rock, paper, scissors, or bomb.",
+                ]
             )
-            return self.format_round_response(round_number)
 
         bot_move = self.choose_bot_move()
         result = resolve_round_tool(user_move, bot_move)
@@ -141,11 +167,13 @@ class RefereeAgent(Agent):
             winner_text = "Draw"
         return "\n".join(
             [
+                "==== Round Result ====",
                 f"Round {round_number}/3",
-                f"You: {record['user_move']} | Bot: {record['bot_move']}",
+                f"Moves: You={record['user_move']} | Bot={record['bot_move']}",
                 f"Winner: {winner_text}",
                 f"Reason: {record['note']}",
                 f"Score: You {self.state.user_score} - Bot {self.state.bot_score}",
+                "======================",
             ]
         )
 
