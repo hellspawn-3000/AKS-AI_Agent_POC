@@ -3,7 +3,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
 from google.adk import Agent
-from google.adk.tools import tool
+from google.adk.tools import FunctionTool
 
 
 # Canonical moves and win relationships for classic Rock-Paper-Scissors.
@@ -44,7 +44,6 @@ class GameState:
     history: List[Dict[str, str]] = field(default_factory=list)
 
 
-@tool(name="validate_move", description="Validate a player's move and bomb usage against game rules.")
 def validate_move_tool(move: Optional[str], player: str, state: GameState) -> Dict[str, object]:
     """Return a structured validation result to keep tool outputs consistent."""
     if not move:
@@ -56,7 +55,6 @@ def validate_move_tool(move: Optional[str], player: str, state: GameState) -> Di
     return asdict(ValidationResult(valid=True, reason="ok"))
 
 
-@tool(name="resolve_round", description="Resolve a round outcome given two valid moves.")
 def resolve_round_tool(user_move: str, bot_move: str) -> Dict[str, str]:
     """Return who won the round and a human-friendly explanation."""
     if user_move == bot_move:
@@ -72,7 +70,6 @@ def resolve_round_tool(user_move: str, bot_move: str) -> Dict[str, str]:
     return asdict(ResolutionResult(winner="bot", explanation=f"{bot_move} beats {user_move}."))
 
 
-@tool(name="update_game_state", description="Mutate game state with the round result.")
 def update_game_state_tool(
     state: GameState,
     user_move: str,
@@ -102,9 +99,8 @@ def update_game_state_tool(
     return state
 
 
-class RefereeAgent(Agent):
+class RefereeAgent:
     def __init__(self, state: GameState) -> None:
-        super().__init__(name="rps_referee", description="Rock-Paper-Scissors-Plus referee agent.")
         self.state = state
 
     def interpret_intent(self, user_text: str) -> Optional[str]:
