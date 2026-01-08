@@ -2,22 +2,8 @@ import random
 from dataclasses import asdict, dataclass, field
 from typing import Dict, List, Optional
 
-# ADK is required by the assignment, but this fallback keeps the script runnable
-# for local demos when ADK is not installed.
-try:
-    from google.adk import Agent
-    from google.adk.tools import tool
-except ImportError:  # Fallback for local runs without ADK installed.
-    def tool(_fn=None, **_kwargs):
-        def _wrap(fn):
-            return fn
-
-        return _wrap if _fn is None else _fn
-
-    class Agent:
-        def __init__(self, name: str, description: str = "") -> None:
-            self.name = name
-            self.description = description
+from google.adk import Agent
+from google.adk.tools import tool
 
 
 # Canonical moves and win relationships for classic Rock-Paper-Scissors.

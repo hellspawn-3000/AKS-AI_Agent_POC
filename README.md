@@ -4,6 +4,7 @@ This project is a minimal CLI chatbot that acts as a referee for a best-of-3 Roc
 
 ## Quick start
 ```bash
+pip install google-adk
 python main.py
 ```
 
@@ -73,7 +74,6 @@ python -m unittest
 
 ## Tradeoffs
 - Bot strategy is intentionally simple (random with occasional bomb) to keep logic easy to follow.
-- A small ADK fallback stub is included in `main.py` so the script can run even if ADK is not installed yet.
 
 ## With more time
 - Add property-based tests for move parsing and scoring.
